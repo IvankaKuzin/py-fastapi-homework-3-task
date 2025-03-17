@@ -40,3 +40,14 @@ class UserActivationRequestSchema(BaseModel):
 
 class PasswordResetRequestSchema(BaseModel):
     email: EmailStr
+
+
+class PasswordResetCompleteRequestSchema(BaseModel):
+    email: EmailStr
+    password: str
+    token: str
+
+    @field_validator("password")
+    @classmethod
+    def check_password_strength(cls, value: str) -> str:
+        return accounts_validators.validate_password_strength(value)
