@@ -19,7 +19,7 @@ from database import (
     RefreshTokenModel
 )
 from schemas import UserRegistrationRequestSchema, UserRegistrationResponseSchema, UserActivationRequestSchema, \
-    PasswordResetRequestSchema, PasswordResetCompleteRequestSchema
+    PasswordResetRequestSchema, PasswordResetCompleteRequestSchema, UserLoginResponseSchema
 from exceptions import BaseSecurityError
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
@@ -84,7 +84,8 @@ async def activate(
         user_data: UserActivationRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
-    user_query = select(UserModel).options(joinedload(UserModel.activation_token)).where(UserModel.email == user_data.email)
+    user_query = select(UserModel).options(joinedload(UserModel.activation_token)).where(
+        UserModel.email == user_data.email)
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
 
@@ -177,7 +178,6 @@ async def reset_password_complete(
                 detail="Invalid email or token."
             )
 
-
         if reset_token.token != data.token or reset_token.expires_at < datetime.now():
             await db.delete(reset_token)
             await db.commit()
@@ -185,7 +185,6 @@ async def reset_password_complete(
                 status_code=400,
                 detail="Invalid email or token."
             )
-
 
         user.password = data.password
         db.add(user)
@@ -204,3 +203,49 @@ async def reset_password_complete(
             detail="An error occurred while resetting the password.",
         )
 
+
+@router.post(
+    "/login/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=UserLoginResponseSchema)
+async def login(
+        data: UserRegistrationRequestSchema,
+        db: AsyncSession = Depends(get_db),
+        jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+):
+    try:
+        user_query = select(UserModel).where(UserModel.email == data.email)
+        user_result = await db.execute(user_query)
+        user = user_result.scalar_one_or_none()
+
+        if not user or not user.verify_password(data.password):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password.",
+            )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=403,
+                detail="User account is not activated.",
+            )
+        user_data = data.model_dump()
+        user_data.update({"user_id": user.id})
+
+        raw_refresh_token = jwt_manager.create_refresh_token(user_data)
+        refresh_token = RefreshTokenModel.create(user_id=user.id, days_valid=7, token=raw_refresh_token)
+        access_token = jwt_manager.create_access_token(user_data)
+
+        db.add(refresh_token)
+        await db.commit()
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token.token,
+            "token_type": "bearer",
+        }
+
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while processing the request.",
+        )
