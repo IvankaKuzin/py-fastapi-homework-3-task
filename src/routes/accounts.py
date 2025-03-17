@@ -1,14 +1,12 @@
-import secrets
-from datetime import datetime, timezone, timedelta
-from typing import cast
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, status, HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
-from config import get_jwt_auth_manager, get_settings, BaseAppSettings
+from config.dependencies import get_jwt_auth_manager
 from database import (
     get_db,
     UserModel,
@@ -18,13 +16,19 @@ from database import (
     PasswordResetTokenModel,
     RefreshTokenModel
 )
-from schemas import UserRegistrationRequestSchema, UserRegistrationResponseSchema, UserActivationRequestSchema, \
-    PasswordResetRequestSchema, PasswordResetCompleteRequestSchema, UserLoginResponseSchema, TokenRefreshRequestSchema, \
-    TokenRefreshResponseSchema, UserLoginRequestSchema
-from exceptions import BaseSecurityError, TokenExpiredError
+from exceptions import TokenExpiredError
+from schemas import (
+    UserRegistrationRequestSchema,
+    UserRegistrationResponseSchema,
+    UserActivationRequestSchema,
+    PasswordResetRequestSchema,
+    PasswordResetCompleteRequestSchema,
+    UserLoginResponseSchema,
+    TokenRefreshRequestSchema,
+    TokenRefreshResponseSchema,
+    UserLoginRequestSchema
+)
 from security.interfaces import JWTAuthManagerInterface
-from security.token_manager import JWTAuthManager
-from config.dependencies import get_jwt_auth_manager
 
 router = APIRouter()
 

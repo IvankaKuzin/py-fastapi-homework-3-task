@@ -20,7 +20,7 @@ class UserRegistrationRequestSchema(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, pass_val: str) -> str|None:
+    def validate_password(cls, pass_val: str) -> str | None:
         validation_result = validate_password_strength(pass_val)
         if validation_result == ValueError:
             raise HTTPException(status_code=422, detail=validation_result)
