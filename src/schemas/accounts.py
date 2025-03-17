@@ -31,3 +31,8 @@ class UserRegistrationRequestSchema(BaseModel):
 class UserRegistrationResponseSchema(BaseModel):
     id: int
     email: str
+
+
+class UserActivationRequestSchema(BaseModel):
+    email: str
+    token: str

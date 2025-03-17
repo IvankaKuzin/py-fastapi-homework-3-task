@@ -18,9 +18,11 @@ from database import (
     PasswordResetTokenModel,
     RefreshTokenModel
 )
-from schemas import UserRegistrationRequestSchema, UserRegistrationResponseSchema
+from schemas import UserRegistrationRequestSchema, UserRegistrationResponseSchema, UserActivationRequestSchema
 from exceptions import BaseSecurityError
 from security.interfaces import JWTAuthManagerInterface
+from security.token_manager import JWTAuthManager
+from config.dependencies import get_jwt_auth_manager
 
 router = APIRouter()
 
@@ -71,3 +73,44 @@ async def register(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during user creation."
         )
+
+
+@router.post(
+    "/activate/",
+    status_code=status.HTTP_200_OK,
+)
+async def activate(
+        user_data: UserActivationRequestSchema,
+        db: AsyncSession = Depends(get_db)
+):
+    user_query = select(UserModel).options(joinedload(UserModel.activation_token)).where(UserModel.email == user_data.email)
+    user_result = await db.execute(user_query)
+    user = user_result.scalar_one_or_none()
+
+    if user.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="User account is already active.",
+        )
+
+    if not user.activation_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired activation token."
+        )
+
+    if user.activation_token.expires_at < datetime.now() or user.activation_token.token != user_data.token:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired activation token."
+        )
+
+    user.is_active = True
+    db.add(user)
+    await db.flush()
+
+    await db.delete(user.activation_token)
+    await db.commit()
+    return {
+        "message": "User account activated successfully.",
+    }
