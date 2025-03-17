@@ -57,3 +57,25 @@ class UserLoginResponseSchema(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
+
+
+class TokenRefreshRequestSchema(BaseModel):
+    refresh_token: str
+
+
+class TokenRefreshResponseSchema(BaseModel):
+    access_token: str
+
+
+class MessageResponseSchema(BaseModel):
+    message: str
+
+
+class UserLoginRequestSchema(BaseModel):
+    email: EmailStr
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def check_password_strength(cls, value: str) -> str:
+        return accounts_validators.validate_password_strength(value)
