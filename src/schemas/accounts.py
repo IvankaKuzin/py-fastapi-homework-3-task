@@ -36,3 +36,7 @@ class UserRegistrationResponseSchema(BaseModel):
 class UserActivationRequestSchema(BaseModel):
     email: str
     token: str
+
+
+class PasswordResetRequestSchema(BaseModel):
+    email: EmailStr

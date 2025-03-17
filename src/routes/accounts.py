@@ -18,7 +18,8 @@ from database import (
     PasswordResetTokenModel,
     RefreshTokenModel
 )
-from schemas import UserRegistrationRequestSchema, UserRegistrationResponseSchema, UserActivationRequestSchema
+from schemas import UserRegistrationRequestSchema, UserRegistrationResponseSchema, UserActivationRequestSchema, \
+    PasswordResetRequestSchema
 from exceptions import BaseSecurityError
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
@@ -113,4 +114,33 @@ async def activate(
     await db.commit()
     return {
         "message": "User account activated successfully.",
+    }
+
+
+@router.post("/password-reset/request/", status_code=status.HTTP_200_OK)
+async def password_reset_request(
+        data: PasswordResetRequestSchema,
+        db: AsyncSession = Depends(get_db),
+):
+    user_query = select(UserModel).where(UserModel.email == data.email)
+    user_result = await db.execute(user_query)
+    user = user_result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        return {
+            "message": "If you are registered, you will receive an email with instructions."
+        }
+
+    reset_token_query = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user == user)
+    reset_token_result = await db.execute(reset_token_query)
+    reset_token = reset_token_result.scalar_one_or_none()
+
+    if reset_token:
+        await db.delete(reset_token)
+        await db.flush()
+    reset_token = PasswordResetTokenModel(user=user)
+    db.add(reset_token)
+    await db.commit()
+    return {
+        "message": "If you are registered, you will receive an email with instructions."
     }
