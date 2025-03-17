@@ -144,7 +144,7 @@ async def password_reset_request(
     if reset_token:
         await db.delete(reset_token)
         await db.flush()
-    reset_token = PasswordResetTokenModel(user=user)
+    reset_token = PasswordResetTokenModel(user_id=user.id)
     db.add(reset_token)
     await db.commit()
     return {
